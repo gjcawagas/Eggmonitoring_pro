@@ -7,30 +7,13 @@
 // Configuration & Constants
 // ============================================
 const CONFIG = {
-    API_ENDPOINT: 'http://192.168.1.100/api', // ESP32 API endpoint
-    POLL_INTERVAL: 3000, // 3 seconds for real-time updates
-    LOGS_UPDATE_INTERVAL: 900000, // 15 minutes
-    TEMP_MIN_SAFE: 37.5,
-    TEMP_MAX_SAFE: 38.5,
-    HUMIDITY_MIN: 50,
-    HUMIDITY_MAX: 60,
+    API_ENDPOINT: 'http://192.168.1.100/api',
+    POLL_INTERVAL: 3000,
+    LOGS_UPDATE_INTERVAL: 900000,
     DEFAULT_TURNS_PER_DAY: 6,
     DEFAULT_TURN_INTERVAL: 4,
     MAX_HISTORY_RECORDS: 1000,
     RECENT_LOGS_COUNT: 20
-};
-
-// Safe ranges
-const TEMP_RANGES = {
-    LOW: { min: 0, max: 37.0, status: 'low', label: 'Low' },
-    NORMAL: { min: 37.5, max: 38.5, status: 'normal', label: 'Normal' },
-    HIGH: { min: 39.0, max: 100, status: 'high', label: 'High' }
-};
-
-const HUMIDITY_RANGES = {
-    LOW: { min: 0, max: 45, status: 'low', label: 'Low' },
-    NORMAL: { min: 50, max: 60, status: 'normal', label: 'Normal' },
-    HIGH: { min: 65, max: 100, status: 'high', label: 'High' }
 };
 
 // ============================================
@@ -50,6 +33,12 @@ const state = {
         turnsPerDay: CONFIG.DEFAULT_TURNS_PER_DAY,
         turnInterval: CONFIG.DEFAULT_TURN_INTERVAL
     },
+    thresholds: {
+        tempMin: 37.5,
+        tempMax: 38.5,
+        humidityMin: 50,
+        humidityMax: 60
+    },
     nextTurnTime: null,
     logs: [],
     history: [],
@@ -63,7 +52,8 @@ const state = {
         humidityMax: null
     },
     alerts: [],
-    isDarkMode: localStorage.getItem('darkMode') === 'true',
+    isDarkMode: localStorage.getItem('darkMode') !== 'false',
+    accentColor: localStorage.getItem('accentColor') || 'amber',
     isConnected: true,
     chartData: {
         temperature: [],
@@ -75,49 +65,72 @@ const state = {
 // DOM Elements
 // ============================================
 const elements = {
-    // Theme toggle
+    // Theme & UI
     themeToggle: document.getElementById('themeToggle'),
+    darkModeToggle: document.getElementById('darkModeToggle'),
+    mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+    mobileNav: document.getElementById('mobileNav'),
+    overlay: document.getElementById('overlay'),
     
-    // Connection status
-    connectionStatus: document.getElementById('connectionStatus'),
+    // Connection
+    statusDot: document.getElementById('statusDot'),
+    connectionText: document.getElementById('connectionText'),
+    lastUpdated: document.getElementById('lastUpdated'),
     
-    // Real-time monitoring
-    temperatureValue: document.getElementById('temperatureValue'),
-    temperatureCard: document.getElementById('temperatureCard'),
-    temperatureStatus: document.getElementById('temperatureStatus'),
+    // Alerts
+    alertBell: document.getElementById('alertBell'),
+    alertsPanel: document.getElementById('alertsPanel'),
+    alertsList: document.getElementById('alertsList'),
+    alertBadge: document.getElementById('alertBadge'),
+    closeAlerts: document.getElementById('closeAlerts'),
+    clearAlerts: document.getElementById('clearAlerts'),
+    alertBanner: document.getElementById('alertBanner'),
+    alertBannerText: document.getElementById('alertBannerText'),
+    closeAlertBanner: document.getElementById('closeAlertBanner'),
+    
+    // Monitoring
+    tempValue: document.getElementById('tempValue'),
+    tempBadge: document.getElementById('tempBadge'),
+    tempCard: document.getElementById('tempCard'),
+    tempMarker: document.getElementById('tempMarker'),
     
     humidityValue: document.getElementById('humidityValue'),
+    humidityBadge: document.getElementById('humidityBadge'),
     humidityCard: document.getElementById('humidityCard'),
-    humidityStatus: document.getElementById('humidityStatus'),
+    humidityMarker: document.getElementById('humidityMarker'),
     
-    turningStatus: document.getElementById('turningStatus'),
+    motorIcon: document.getElementById('motorIcon'),
+    motorState: document.getElementById('motorState'),
+    motorBadge: document.getElementById('motorBadge'),
     turnsToday: document.getElementById('turnsToday'),
     nextTurnCountdown: document.getElementById('nextTurnCountdown'),
     
     fanToggle: document.getElementById('fanToggle'),
-    fanStatus: document.getElementById('fanStatus'),
-    fanLastRan: document.getElementById('fanLastRan'),
+    fanIcon: document.getElementById('fanIcon'),
+    fanState: document.getElementById('fanState'),
     
-    // Alerts
-    alertsSection: document.getElementById('alertsSection'),
-    
-    // Control panel
+    // Control
     turnsPerDay: document.getElementById('turnsPerDay'),
     turnInterval: document.getElementById('turnInterval'),
     saveSettings: document.getElementById('saveSettings'),
     scheduleTimes: document.getElementById('scheduleTimes'),
+    triggerTurn: document.getElementById('triggerTurn'),
+    manualStatus: document.getElementById('manualStatus'),
+    totalTurns: document.getElementById('totalTurns'),
+    lastTurnTime: document.getElementById('lastTurnTime'),
+    nextScheduled: document.getElementById('nextScheduled'),
     
     // Charts
     temperatureChart: null,
     humidityChart: null,
+    chartTimeRange: document.getElementById('chartTimeRange'),
     
     // Logs
     logsTableBody: document.getElementById('logsTableBody'),
-    logsLastUpdate: document.getElementById('logsLastUpdate'),
+    logsCount: document.getElementById('logsCount'),
+    refreshLogs: document.getElementById('refreshLogs'),
     
     // History
-    toggleHistory: document.getElementById('toggleHistory'),
-    historyCard: document.getElementById('historyCard'),
     searchDate: document.getElementById('searchDate'),
     filterTempMin: document.getElementById('filterTempMin'),
     filterTempMax: document.getElementById('filterTempMax'),
@@ -127,10 +140,26 @@ const elements = {
     clearFilters: document.getElementById('clearFilters'),
     exportCSV: document.getElementById('exportCSV'),
     historyTableBody: document.getElementById('historyTableBody'),
-    historyStats: document.getElementById('historyStats'),
     totalRecords: document.getElementById('totalRecords'),
     filteredRecords: document.getElementById('filteredRecords'),
-    historyPagination: document.getElementById('historyPagination')
+    historyPagination: document.getElementById('historyPagination'),
+    
+    // Settings
+    showRangeBars: document.getElementById('showRangeBars'),
+    tempMinThreshold: document.getElementById('tempMinThreshold'),
+    tempMaxThreshold: document.getElementById('tempMaxThreshold'),
+    humidityMinThreshold: document.getElementById('humidityMinThreshold'),
+    humidityMaxThreshold: document.getElementById('humidityMaxThreshold'),
+    saveThresholds: document.getElementById('saveThresholds'),
+    testConnection: document.getElementById('testConnection'),
+    connectionTestResult: document.getElementById('connectionTestResult'),
+    
+    // Toast
+    toastContainer: document.getElementById('toastContainer'),
+    
+    // Nav links
+    navLinks: document.querySelectorAll('.nav-link'),
+    mobileNavLinks: document.querySelectorAll('.mobile-nav-link')
 };
 
 // ============================================
@@ -156,7 +185,7 @@ function formatTime(date) {
 }
 
 function formatCountdown(ms) {
-    if (ms <= 0) return '00:00';
+    if (ms <= 0) return '00:00:00';
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -164,20 +193,35 @@ function formatCountdown(ms) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function getTemperatureStatus(temp) {
-    if (temp < TEMP_RANGES.NORMAL.min) return TEMP_RANGES.LOW;
-    if (temp <= TEMP_RANGES.NORMAL.max) return TEMP_RANGES.NORMAL;
-    return TEMP_RANGES.HIGH;
-}
-
-function getHumidityStatus(humidity) {
-    if (humidity < HUMIDITY_RANGES.NORMAL.min) return HUMIDITY_RANGES.LOW;
-    if (humidity <= HUMIDITY_RANGES.NORMAL.max) return HUMIDITY_RANGES.NORMAL;
-    return HUMIDITY_RANGES.HIGH;
+// ============================================
+// Toast Notifications
+// ============================================
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    toast.innerHTML = `
+        <i class="fas ${icons[type]}"></i>
+        <span>${message}</span>
+    `;
+    
+    elements.toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // ============================================
-// Mock API (Simulates ESP32 Connection)
+// Mock ESP32 API
 // ============================================
 class MockESP32API {
     constructor() {
@@ -186,15 +230,11 @@ class MockESP32API {
         this.eggTurning = false;
         this.fanOn = false;
         this.turnsToday = 3;
-        this.turnInterval = CONFIG.DEFAULT_TURN_INTERVAL;
-        this.nextTurnTime = Date.now() + (Math.random() * 3600000);
     }
 
     async fetchSensorData() {
-        // Simulate network delay
         await this.delay(100);
         
-        // Add some random variation
         const temperatureVariation = (Math.random() - 0.5) * 1.5;
         const humidityVariation = (Math.random() - 0.5) * 8;
         
@@ -215,16 +255,15 @@ class MockESP32API {
         return { success: true, fanOn: enabled };
     }
 
-    async setTurnSettings(turnsPerDay, interval) {
-        await this.delay(50);
-        this.turnInterval = 24 / turnsPerDay;
-        return { success: true };
-    }
-
-    async triggerEggTurn() {
+    async triggerTurn() {
         await this.delay(100);
         this.turnsToday++;
         return { success: true, turnsToday: this.turnsToday };
+    }
+
+    async setTurnSettings(turnsPerDay, interval) {
+        await this.delay(50);
+        return { success: true };
     }
 
     delay(ms) {
@@ -247,21 +286,15 @@ function addLog(data) {
     };
     
     state.logs.unshift(log);
-    
-    // Keep only recent logs in memory
     if (state.logs.length > CONFIG.RECENT_LOGS_COUNT) {
         state.logs = state.logs.slice(0, CONFIG.RECENT_LOGS_COUNT);
     }
     
-    // Add to history
     state.history.unshift(log);
-    
-    // Limit history size
     if (state.history.length > CONFIG.MAX_HISTORY_RECORDS) {
         state.history = state.history.slice(0, CONFIG.MAX_HISTORY_RECORDS);
     }
     
-    // Save to localStorage
     saveToLocalStorage();
 }
 
@@ -269,8 +302,11 @@ function saveToLocalStorage() {
     try {
         localStorage.setItem('eggwatch_history', JSON.stringify(state.history));
         localStorage.setItem('eggwatch_settings', JSON.stringify(state.settings));
+        localStorage.setItem('eggwatch_thresholds', JSON.stringify(state.thresholds));
         localStorage.setItem('eggwatch_turns_today', state.currentData.turnsToday);
         localStorage.setItem('eggwatch_next_turn', state.nextTurnTime);
+        localStorage.setItem('eggwatch_darkmode', state.isDarkMode);
+        localStorage.setItem('eggwatch_accent', state.accentColor);
     } catch (e) {
         console.warn('Failed to save to localStorage:', e);
     }
@@ -280,12 +316,11 @@ function loadFromLocalStorage() {
     try {
         const history = localStorage.getItem('eggwatch_history');
         const settings = localStorage.getItem('eggwatch_settings');
+        const thresholds = localStorage.getItem('eggwatch_thresholds');
         const turnsToday = localStorage.getItem('eggwatch_turns_today');
         const nextTurn = localStorage.getItem('eggwatch_next_turn');
         
-        if (history) {
-            state.history = JSON.parse(history);
-        }
+        if (history) state.history = JSON.parse(history);
         
         if (settings) {
             state.settings = JSON.parse(settings);
@@ -293,13 +328,20 @@ function loadFromLocalStorage() {
             elements.turnInterval.value = state.settings.turnInterval;
         }
         
-        if (turnsToday) {
-            state.currentData.turnsToday = parseInt(turnsToday);
+        if (thresholds) {
+            state.thresholds = JSON.parse(thresholds);
+            elements.tempMinThreshold.value = state.thresholds.tempMin;
+            elements.tempMaxThreshold.value = state.thresholds.tempMax;
+            elements.humidityMinThreshold.value = state.thresholds.humidityMin;
+            elements.humidityMaxThreshold.value = state.thresholds.humidityMax;
         }
         
-        if (nextTurn) {
-            state.nextTurnTime = parseInt(nextTurn);
-        }
+        if (turnsToday) state.currentData.turnsToday = parseInt(turnsToday);
+        if (nextTurn) state.nextTurnTime = parseInt(nextTurn);
+        
+        state.isDarkMode = localStorage.getItem('darkMode') !== 'false';
+        state.accentColor = localStorage.getItem('accentColor') || 'amber';
+        
     } catch (e) {
         console.warn('Failed to load from localStorage:', e);
     }
@@ -310,7 +352,7 @@ function generateMockHistory() {
     
     const now = Date.now();
     for (let i = 0; i < 200; i++) {
-        const timestamp = new Date(now - (i * 15 * 60 * 1000)); // Every 15 minutes
+        const timestamp = new Date(now - (i * 15 * 60 * 1000));
         const tempVariation = (Math.random() - 0.5) * 2;
         const humidityVariation = (Math.random() - 0.5) * 15;
         
@@ -323,7 +365,6 @@ function generateMockHistory() {
         });
     }
     
-    // Sort by timestamp descending
     state.history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 }
 
@@ -331,58 +372,95 @@ function generateMockHistory() {
 // UI Updates
 // ============================================
 function updateTemperatureDisplay(temp) {
-    elements.temperatureValue.textContent = temp.toFixed(1);
+    elements.tempValue.textContent = temp.toFixed(1);
     
-    const status = getTemperatureStatus(temp);
-    const card = elements.temperatureCard;
-    const statusEl = elements.temperatureStatus;
+    let status = 'normal';
+    let badge = 'Normal';
+    let color = 'normal';
     
-    // Remove all status classes
-    card.classList.remove('low', 'normal', 'high');
-    card.classList.add(status.status);
+    if (temp < state.thresholds.tempMin - 1) {
+        status = 'low';
+        badge = 'Low';
+        color = 'low';
+    } else if (temp > state.thresholds.tempMax + 1) {
+        status = 'high';
+        badge = 'High';
+        color = 'high';
+    }
     
-    statusEl.textContent = status.label;
-    statusEl.className = 'card-status ' + status.status;
+    elements.tempValue.className = `big-value ${color}`;
+    elements.tempBadge.textContent = badge;
+    elements.tempBadge.className = `card-badge ${status}`;
+    elements.tempCard.className = `card card-temperature`;
+    
+    // Update marker position (35-42°C range)
+    const percentage = ((temp - 35) / (42 - 35)) * 100;
+    elements.tempMarker.style.left = `${Math.min(Math.max(percentage, 0), 100)}%`;
 }
 
 function updateHumidityDisplay(humidity) {
     elements.humidityValue.textContent = humidity.toFixed(1);
     
-    const status = getHumidityStatus(humidity);
-    const card = elements.humidityCard;
-    const statusEl = elements.humidityStatus;
+    let status = 'normal';
+    let badge = 'Normal';
+    let color = 'normal';
     
-    // Remove all status classes
-    card.classList.remove('low', 'normal', 'high');
-    card.classList.add(status.status);
+    if (humidity < state.thresholds.humidityMin - 5) {
+        status = 'low';
+        badge = 'Low';
+        color = 'low';
+    } else if (humidity > state.thresholds.humidityMax + 5) {
+        status = 'high';
+        badge = 'High';
+        color = 'high';
+    }
     
-    statusEl.textContent = status.label;
-    statusEl.className = 'card-status ' + status.status;
+    elements.humidityValue.className = `big-value ${color}`;
+    elements.humidityBadge.textContent = badge;
+    elements.humidityBadge.className = `card-badge ${status}`;
+    elements.humidityCard.className = `card card-humidity`;
+    
+    // Update marker position (30-80% range)
+    const percentage = ((humidity - 30) / (80 - 30)) * 100;
+    elements.humidityMarker.style.left = `${Math.min(Math.max(percentage, 0), 100)}%`;
 }
 
-function updateTurningDisplay(isTurning, turnsToday) {
-    const statusEl = elements.turningStatus;
-    
+function updateMotorDisplay(isTurning, turnsToday) {
     if (isTurning) {
-        statusEl.innerHTML = '<i class="fas fa-circle-notch spinning"></i><span>Running</span>';
-        statusEl.className = 'status-indicator running';
+        elements.motorIcon.className = 'motor-icon running';
+        elements.motorState.textContent = 'Running';
+        elements.motorState.className = 'motor-state running';
+        elements.motorBadge.textContent = 'Running';
+        elements.motorBadge.className = 'card-badge normal';
     } else {
-        statusEl.innerHTML = '<i class="fas fa-pause"></i><span>Idle</span>';
-        statusEl.className = 'status-indicator idle';
+        elements.motorIcon.className = 'motor-icon';
+        elements.motorState.textContent = 'Idle';
+        elements.motorState.className = 'motor-state';
+        elements.motorBadge.textContent = 'Idle';
+        elements.motorBadge.className = 'card-badge';
     }
     
     elements.turnsToday.textContent = turnsToday;
+    elements.totalTurns.textContent = turnsToday;
 }
 
-function updateFanDisplay(fanOn, lastRan) {
-    elements.fanToggle.classList.toggle('active', fanOn);
-    elements.fanStatus.textContent = fanOn ? 'ON' : 'OFF';
-    elements.fanLastRan.textContent = formatTime(lastRan);
+function updateFanDisplay(fanOn) {
+    elements.fanToggle.checked = fanOn;
+    
+    if (fanOn) {
+        elements.fanIcon.className = 'fan-icon running';
+        elements.fanState.textContent = 'ON';
+        elements.fanState.className = 'fan-state running';
+    } else {
+        elements.fanIcon.className = 'fan-icon';
+        elements.fanState.textContent = 'OFF';
+        elements.fanState.className = 'fan-state';
+    }
 }
 
 function updateCountdown() {
     if (!state.nextTurnTime) {
-        elements.nextTurnCountdown.textContent = '--:--';
+        elements.nextTurnCountdown.textContent = '--:--:--';
         return;
     }
     
@@ -390,17 +468,19 @@ function updateCountdown() {
     const diff = state.nextTurnTime - now;
     
     if (diff <= 0) {
-        // Trigger egg turn
         state.currentData.turnsToday++;
-        elements.turnsToday.textContent = state.currentData.turnsToday;
+        updateMotorDisplay(state.currentData.eggTurning, state.currentData.turnsToday);
         
-        // Set next turn time
         const interval = (24 / state.settings.turnsPerDay) * 60 * 60 * 1000;
         state.nextTurnTime = Date.now() + interval;
         saveToLocalStorage();
+        
+        showToast('Egg turn completed!', 'success');
     }
     
     elements.nextTurnCountdown.textContent = formatCountdown(diff);
+    elements.nextScheduled.textContent = formatTime(new Date(state.nextTurnTime));
+    elements.lastTurnTime.textContent = state.currentData.turnsToday > 0 ? formatTime(new Date(Date.now() - 3600000)) : '--';
 }
 
 function updateScheduleDisplay() {
@@ -419,10 +499,8 @@ function updateScheduleDisplay() {
     
     elements.scheduleTimes.innerHTML = times.map(time => {
         const isPast = time < now;
-        const isNext = !isPast && times.filter(t => t > now).indexOf(time) === 0;
-        let className = 'schedule-time';
+        let className = 'schedule-time-chip';
         if (isPast) className += ' past';
-        if (isNext) className += ' active';
         
         return `<span class="${className}">${formatTime(time)}</span>`;
     }).join('');
@@ -432,37 +510,27 @@ function updateScheduleDisplay() {
 // Charts
 // ============================================
 function initCharts() {
+    const isDark = state.isDarkMode;
+    const textColor = isDark ? '#8b92a8' : '#555d75';
+    const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+    
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        animation: {
-            duration: 500
-        },
+        animation: { duration: 500 },
         scales: {
             x: {
-                grid: {
-                    color: state.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
-                },
-                ticks: {
-                    color: state.isDarkMode ? '#8b949e' : '#5a6c7d',
-                    maxRotation: 45,
-                    minRotation: 45
-                }
+                grid: { color: gridColor },
+                ticks: { color: textColor, maxRotation: 45, minRotation: 45 }
             },
             y: {
-                grid: {
-                    color: state.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
-                },
-                ticks: {
-                    color: state.isDarkMode ? '#8b949e' : '#5a6c7d'
-                }
+                grid: { color: gridColor },
+                ticks: { color: textColor }
             }
         },
         plugins: {
             legend: {
-                labels: {
-                    color: state.isDarkMode ? '#f0f6fc' : '#2c3e50'
-                }
+                labels: { color: isDark ? '#f0f2f8' : '#1a1d27' }
             }
         }
     };
@@ -476,16 +544,16 @@ function initCharts() {
             datasets: [{
                 label: 'Temperature (°C)',
                 data: [],
-                borderColor: '#e74c3c',
-                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239,68,68,0.1)',
                 fill: true,
                 tension: 0.4,
-                pointRadius: 3,
-                pointHoverRadius: 6
+                pointRadius: 2,
+                pointHoverRadius: 5
             }, {
-                label: 'Safe Range',
+                label: 'Max Safe',
                 data: [],
-                borderColor: '#27ae60',
+                borderColor: '#22c55e',
                 borderDash: [5, 5],
                 pointRadius: 0,
                 fill: false
@@ -495,11 +563,7 @@ function initCharts() {
             ...chartOptions,
             scales: {
                 ...chartOptions.scales,
-                y: {
-                    ...chartOptions.scales.y,
-                    min: 35,
-                    max: 42
-                }
+                y: { ...chartOptions.scales.y, min: 35, max: 42 }
             }
         }
     });
@@ -513,16 +577,16 @@ function initCharts() {
             datasets: [{
                 label: 'Humidity (%)',
                 data: [],
-                borderColor: '#3498db',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.1)',
                 fill: true,
                 tension: 0.4,
-                pointRadius: 3,
-                pointHoverRadius: 6
+                pointRadius: 2,
+                pointHoverRadius: 5
             }, {
-                label: 'Optimal Range',
+                label: 'Max Optimal',
                 data: [],
-                borderColor: '#27ae60',
+                borderColor: '#22c55e',
                 borderDash: [5, 5],
                 pointRadius: 0,
                 fill: false
@@ -532,35 +596,28 @@ function initCharts() {
             ...chartOptions,
             scales: {
                 ...chartOptions.scales,
-                y: {
-                    ...chartOptions.scales.y,
-                    min: 30,
-                    max: 80
-                }
+                y: { ...chartOptions.scales.y, min: 30, max: 80 }
             }
         }
     });
     
-    // Initial chart data
     updateChartData();
 }
 
 function updateChartData() {
-    // Get last 24 hours of data
+    const hours = parseInt(elements.chartTimeRange.value);
     const now = Date.now();
-    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+    const startTime = now - (hours * 60 * 60 * 1000);
     
     const recentHistory = state.history
-        .filter(h => new Date(h.timestamp).getTime() > oneDayAgo)
-        .slice(0, 48); // Max 48 points
+        .filter(h => new Date(h.timestamp).getTime() > startTime)
+        .slice(0, 48);
     
     const labels = recentHistory.map(h => formatTime(h.timestamp));
     const temps = recentHistory.map(h => h.temperature);
     const humidities = recentHistory.map(h => h.humidity);
-    
-    // Safe range lines
-    const safeTemp = Array(recentHistory.length).fill(CONFIG.TEMP_MAX_SAFE);
-    const optimalHumidity = Array(recentHistory.length).fill(CONFIG.HUMIDITY_MAX);
+    const safeTemp = Array(recentHistory.length).fill(state.thresholds.tempMax);
+    const optimalHumidity = Array(recentHistory.length).fill(state.thresholds.humidityMax);
     
     elements.temperatureChart.data.labels = labels;
     elements.temperatureChart.data.datasets[0].data = temps;
@@ -582,15 +639,19 @@ function updateLogsDisplay() {
     elements.logsTableBody.innerHTML = recentLogs.map(log => `
         <tr>
             <td>${formatDateTime(log.timestamp)}</td>
-            <td>${log.temperature.toFixed(1)}°C</td>
+            <td class="${getTempClass(log.temperature)}">${log.temperature.toFixed(1)}°C</td>
             <td>${log.humidity.toFixed(1)}%</td>
-            <td class="${log.eggTurned ? 'egg-turn-yes' : 'egg-turn-no'}">
-                ${log.eggTurned ? 'Yes' : 'No'}
-            </td>
+            <td class="${log.eggTurned ? 'turn-yes' : 'turn-no'}">${log.eggTurned ? 'Yes' : 'No'}</td>
         </tr>
     `).join('');
     
-    elements.logsLastUpdate.textContent = `Last update: ${formatDateTime(new Date())}`;
+    elements.lastUpdated.textContent = `Last: ${formatTime(new Date())}`;
+}
+
+function getTempClass(temp) {
+    if (temp < state.thresholds.tempMin) return 'temp-low';
+    if (temp > state.thresholds.tempMax) return 'temp-high';
+    return 'temp-normal';
 }
 
 // ============================================
@@ -599,7 +660,6 @@ function updateLogsDisplay() {
 function updateHistoryDisplay() {
     let filteredHistory = [...state.history];
     
-    // Apply filters
     if (state.filters.searchDate) {
         const filterDate = new Date(state.filters.searchDate).toDateString();
         filteredHistory = filteredHistory.filter(h => 
@@ -631,42 +691,33 @@ function updateHistoryDisplay() {
         );
     }
     
-    // Pagination
     const totalPages = Math.ceil(filteredHistory.length / state.historyPerPage);
     const startIndex = (state.historyPage - 1) * state.historyPerPage;
     const paginatedHistory = filteredHistory.slice(startIndex, startIndex + state.historyPerPage);
     
-    // Update stats
     elements.totalRecords.textContent = state.history.length;
     elements.filteredRecords.textContent = filteredHistory.length;
     
-    // Render table
     elements.historyTableBody.innerHTML = paginatedHistory.map(log => `
         <tr>
             <td>${formatDateTime(log.timestamp)}</td>
-            <td>${log.temperature.toFixed(1)}</td>
+            <td class="${getTempClass(log.temperature)}">${log.temperature.toFixed(1)}</td>
             <td>${log.humidity.toFixed(1)}</td>
-            <td class="${log.eggTurned ? 'egg-turn-yes' : 'egg-turn-no'}">
-                ${log.eggTurned ? 'Yes' : 'No'}
-            </td>
+            <td class="${log.eggTurned ? 'turn-yes' : 'turn-no'}">${log.eggTurned ? 'Yes' : 'No'}</td>
             <td>${log.fanOn ? 'ON' : 'OFF'}</td>
         </tr>
     `).join('');
     
-    // Render pagination
     if (totalPages > 1) {
         let paginationHTML = '';
         
-        paginationHTML += `<button ${state.historyPage === 1 ? 'disabled' : ''} 
-            onclick="goToPage(${state.historyPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        paginationHTML += `<button class="page-btn" ${state.historyPage === 1 ? 'disabled' : ''} onclick="goToPage(${state.historyPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
         
         for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-            paginationHTML += `<button class="${i === state.historyPage ? 'active' : ''}" 
-                onclick="goToPage(${i})">${i}</button>`;
+            paginationHTML += `<button class="page-btn ${i === state.historyPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
         }
         
-        paginationHTML += `<button ${state.historyPage === totalPages ? 'disabled' : ''} 
-            onclick="goToPage(${state.historyPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        paginationHTML += `<button class="page-btn" ${state.historyPage === totalPages ? 'disabled' : ''} onclick="goToPage(${state.historyPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
         
         elements.historyPagination.innerHTML = paginationHTML;
     } else {
@@ -684,118 +735,190 @@ function goToPage(page) {
 // ============================================
 function addAlert(type, message) {
     const alertId = Date.now();
-    const alert = { id: alertId, type, message };
+    const alert = { id: alertId, type, message, time: new Date() };
     state.alerts.push(alert);
     
     const alertEl = document.createElement('div');
-    alertEl.className = `alert alert-${type}`;
-    alertEl.id = `alert-${alertId}`;
+    alertEl.className = `alert-item ${type}`;
     alertEl.innerHTML = `
-        <i class="fas fa-${getAlertIcon(type)}"></i>
-        <span>${message}</span>
-        <button class="alert-close" onclick="dismissAlert(${alertId})">
-            <i class="fas fa-times"></i>
-        </button>
+        <i class="fas fa-${getAlertIcon(type)} alert-item-icon"></i>
+        <div class="alert-item-body">
+            <div class="alert-item-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+            <div class="alert-item-msg">${message}</div>
+            <div class="alert-item-time">${formatDateTime(new Date())}</div>
+        </div>
     `;
     
-    elements.alertsSection.appendChild(alertEl);
+    // Remove "no alerts" message if exists
+    const noAlerts = elements.alertsList.querySelector('.no-alerts');
+    if (noAlerts) noAlerts.remove();
     
-    // Auto-dismiss after 10 seconds
-    setTimeout(() => dismissAlert(alertId), 10000);
-}
-
-function dismissAlert(id) {
-    const alertEl = document.getElementById(`alert-${id}`);
-    if (alertEl) {
-        alertEl.remove();
+    elements.alertsList.prepend(alertEl);
+    
+    // Update badge
+    elements.alertBadge.textContent = state.alerts.length;
+    elements.alertBadge.style.display = state.alerts.length > 0 ? 'flex' : 'none';
+    
+    // Show banner for critical alerts
+    if (type === 'critical') {
+        showAlertBanner(message);
     }
-    state.alerts = state.alerts.filter(a => a.id !== id);
 }
 
 function getAlertIcon(type) {
     switch (type) {
-        case 'danger': return 'exclamation-triangle';
+        case 'critical': return 'exclamation-triangle';
         case 'warning': return 'exclamation-circle';
         case 'info': return 'info-circle';
         default: return 'bell';
     }
 }
 
-function checkAlerts(temperature, humidity, eggTurning) {
-    // Temperature alerts
-    const tempStatus = getTemperatureStatus(temperature);
-    if (tempStatus.status === 'low') {
-        addAlert('danger', `Temperature too low: ${temperature.toFixed(1)}°C (Safe: ${CONFIG.TEMP_MIN_SAFE}-${CONFIG.TEMP_MAX_SAFE}°C)`);
-    } else if (tempStatus.status === 'high') {
-        addAlert('danger', `Temperature too high: ${temperature.toFixed(1)}°C (Safe: ${CONFIG.TEMP_MIN_SAFE}-${CONFIG.TEMP_MAX_SAFE}°C)`);
+function showAlertBanner(message) {
+    elements.alertBannerText.textContent = message;
+    elements.alertBanner.style.display = 'flex';
+}
+
+function checkAlerts(temperature, humidity) {
+    if (temperature < state.thresholds.tempMin - 1) {
+        addAlert('critical', `Temperature too low: ${temperature.toFixed(1)}°C`);
+    } else if (temperature > state.thresholds.tempMax + 1) {
+        addAlert('critical', `Temperature too high: ${temperature.toFixed(1)}°C`);
     }
     
-    // Humidity alerts
-    const humidityStatus = getHumidityStatus(humidity);
-    if (humidityStatus.status === 'low') {
-        addAlert('warning', `Humidity too low: ${humidity.toFixed(1)}% (Optimal: ${CONFIG.HUMIDITY_MIN}-${CONFIG.HUMIDITY_MAX}%)`);
-    } else if (humidityStatus.status === 'high') {
-        addAlert('warning', `Humidity too high: ${humidity.toFixed(1)}% (Optimal: ${CONFIG.HUMIDITY_MIN}-${CONFIG.HUMIDITY_MAX}%)`);
+    if (humidity < state.thresholds.humidityMin - 5) {
+        addAlert('warning', `Humidity too low: ${humidity.toFixed(1)}%`);
+    } else if (humidity > state.thresholds.humidityMax + 5) {
+        addAlert('warning', `Humidity too high: ${humidity.toFixed(1)}%`);
     }
 }
 
 // ============================================
-// Theme Management
+// Theme & UI
 // ============================================
 function initTheme() {
     if (state.isDarkMode) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        elements.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+        elements.darkModeToggle.checked = true;
     } else {
         document.documentElement.setAttribute('data-theme', 'light');
-        elements.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+        elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        elements.darkModeToggle.checked = false;
     }
+    
+    document.documentElement.setAttribute('data-accent', state.accentColor);
+    
+    // Update swatches
+    document.querySelectorAll('.swatch').forEach(swatch => {
+        swatch.classList.toggle('active', swatch.dataset.accent === state.accentColor);
+    });
 }
 
 function toggleTheme() {
     state.isDarkMode = !state.isDarkMode;
-    localStorage.setItem('darkMode', state.isDarkMode);
     initTheme();
+    saveToLocalStorage();
     
-    // Update chart colors
+    // Update charts
     if (elements.temperatureChart) {
-        elements.temperatureChart.options.scales.x.grid.color = 
-            state.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-        elements.temperatureChart.options.scales.x.ticks.color = 
-            state.isDarkMode ? '#8b949e' : '#5a6c7d';
-        elements.temperatureChart.options.scales.y.grid.color = 
-            state.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-        elements.temperatureChart.options.scales.y.ticks.color = 
-            state.isDarkMode ? '#8b949e' : '#5a6c7d';
-        elements.temperatureChart.update();
-        
-        elements.humidityChart.options.scales.x.grid.color = 
-            state.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-        elements.humidityChart.options.scales.x.ticks.color = 
-            state.isDarkMode ? '#8b949e' : '#5a6c7d';
-        elements.humidityChart.options.scales.y.grid.color = 
-            state.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-        elements.humidityChart.options.scales.y.ticks.color = 
-            state.isDarkMode ? '#8b949e' : '#5a6c7d';
-        elements.humidityChart.update();
+        initCharts();
     }
+}
+
+function setAccentColor(color) {
+    state.accentColor = color;
+    document.documentElement.setAttribute('data-accent', color);
+    
+    document.querySelectorAll('.swatch').forEach(swatch => {
+        swatch.classList.toggle('active', swatch.dataset.accent === color);
+    });
+    
+    saveToLocalStorage();
+}
+
+// ============================================
+// Navigation
+// ============================================
+function setupNavigation() {
+    // Mobile menu
+    elements.mobileMenuBtn.addEventListener('click', () => {
+        elements.mobileNav.classList.toggle('open');
+        elements.overlay.classList.toggle('active');
+    });
+    
+    elements.overlay.addEventListener('click', () => {
+        elements.mobileNav.classList.remove('open');
+        elements.overlay.classList.remove('active');
+    });
+    
+    // Nav links
+    elements.navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('href').substring(1);
+            
+            elements.navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            
+            document.getElementById(targetId).scrollIntoView({ behavior: 'smooth' });
+            
+            elements.mobileNav.classList.remove('open');
+            elements.overlay.classList.remove('active');
+        });
+    });
+    
+    elements.mobileNavLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            elements.mobileNavLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+        });
+    });
+    
+    // Alerts panel
+    elements.alertBell.addEventListener('click', () => {
+        elements.alertsPanel.classList.toggle('open');
+    });
+    
+    elements.closeAlerts.addEventListener('click', () => {
+        elements.alertsPanel.classList.remove('open');
+    });
+    
+    elements.clearAlerts.addEventListener('click', () => {
+        state.alerts = [];
+        elements.alertsList.innerHTML = '<div class="no-alerts">No alerts</div>';
+        elements.alertBadge.style.display = 'none';
+        showToast('Alerts cleared', 'info');
+    });
+    
+    elements.closeAlertBanner.addEventListener('click', () => {
+        elements.alertBanner.style.display = 'none';
+    });
 }
 
 // ============================================
 // Event Handlers
 // ============================================
 function setupEventListeners() {
-    // Theme toggle
+    // Theme
     elements.themeToggle.addEventListener('click', toggleTheme);
+    elements.darkModeToggle.addEventListener('click', toggleTheme);
+    
+    // Accent colors
+    document.querySelectorAll('.swatch').forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            setAccentColor(swatch.dataset.accent);
+        });
+    });
     
     // Fan toggle
     elements.fanToggle.addEventListener('click', async () => {
-        const newState = !elements.fanToggle.classList.contains('active');
+        const newState = elements.fanToggle.checked;
         const result = await api.setFanStatus(newState);
         if (result.success) {
             state.currentData.fanOn = result.fanOn;
-            updateFanDisplay(result.fanOn, new Date().toISOString());
-            addAlert('info', `Fan turned ${result.fanOn ? 'ON' : 'OFF'}`);
+            updateFanDisplay(result.fanOn);
+            showToast(`Fan turned ${result.fanOn ? 'ON' : 'OFF'}`, 'success');
         }
     });
     
@@ -805,7 +928,7 @@ function setupEventListeners() {
         const turnInterval = parseInt(elements.turnInterval.value);
         
         if (turnsPerDay < 1 || turnsPerDay > 24 || turnInterval < 1 || turnInterval > 12) {
-            addAlert('warning', 'Please enter valid settings');
+            showToast('Invalid settings', 'error');
             return;
         }
         
@@ -814,33 +937,45 @@ function setupEventListeners() {
         
         await api.setTurnSettings(turnsPerDay, turnInterval);
         
-        // Recalculate next turn time
         const interval = (24 / turnsPerDay) * 60 * 60 * 1000;
         state.nextTurnTime = Date.now() + interval;
         
         updateScheduleDisplay();
         saveToLocalStorage();
         
-        addAlert('success', 'Settings saved successfully!');
+        showToast('Settings saved!', 'success');
     });
     
-    // Toggle history
-    elements.toggleHistory.addEventListener('click', () => {
-        elements.historyCard.classList.toggle('hidden');
-        const icon = elements.toggleHistory.querySelector('i');
-        if (elements.historyCard.classList.contains('hidden')) {
-            icon.classList.remove('fa-chevron-up');
-            icon.classList.add('fa-chevron-down');
-            elements.toggleHistory.innerHTML = '<i class="fas fa-chevron-down"></i> Expand';
-        } else {
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-up');
-            elements.toggleHistory.innerHTML = '<i class="fas fa-chevron-up"></i> Collapse';
-            updateHistoryDisplay();
+    // Trigger turn
+    elements.triggerTurn.addEventListener('click', async () => {
+        elements.manualStatus.textContent = 'Turning...';
+        const result = await api.triggerTurn();
+        
+        if (result.success) {
+            state.currentData.turnsToday = result.turnsToday;
+            updateMotorDisplay(true, result.turnsToday);
+            elements.manualStatus.textContent = 'Turn completed!';
+            
+            setTimeout(() => {
+                state.currentData.eggTurning = false;
+                updateMotorDisplay(false, result.turnsToday);
+                elements.manualStatus.textContent = '';
+            }, 3000);
+            
+            showToast('Manual turn triggered!', 'success');
         }
     });
     
-    // Apply filters
+    // Chart time range
+    elements.chartTimeRange.addEventListener('change', updateChartData);
+    
+    // Refresh logs
+    elements.refreshLogs.addEventListener('click', () => {
+        updateLogsDisplay();
+        showToast('Logs refreshed', 'info');
+    });
+    
+    // History filters
     elements.applyFilters.addEventListener('click', () => {
         state.filters = {
             searchDate: elements.searchDate.value || null,
@@ -851,9 +986,9 @@ function setupEventListeners() {
         };
         state.historyPage = 1;
         updateHistoryDisplay();
+        showToast('Filters applied', 'info');
     });
     
-    // Clear filters
     elements.clearFilters.addEventListener('click', () => {
         elements.searchDate.value = '';
         elements.filterTempMin.value = '';
@@ -891,7 +1026,36 @@ function setupEventListeners() {
         link.click();
         document.body.removeChild(link);
         
-        addAlert('success', 'History exported to CSV!');
+        showToast('History exported to CSV!', 'success');
+    });
+    
+    // Save thresholds
+    elements.saveThresholds.addEventListener('click', () => {
+        state.thresholds = {
+            tempMin: parseFloat(elements.tempMinThreshold.value),
+            tempMax: parseFloat(elements.tempMaxThreshold.value),
+            humidityMin: parseFloat(elements.humidityMinThreshold.value),
+            humidityMax: parseFloat(elements.humidityMaxThreshold.value)
+        };
+        
+        saveToLocalStorage();
+        showToast('Thresholds saved!', 'success');
+    });
+    
+    // Test connection
+    elements.testConnection.addEventListener('click', async () => {
+        elements.connectionTestResult.textContent = 'Testing...';
+        elements.connectionTestResult.className = 'connection-test';
+        
+        try {
+            // Simulate connection test
+            await api.fetchSensorData();
+            elements.connectionTestResult.textContent = 'Connection successful!';
+            elements.connectionTestResult.classList.add('success');
+        } catch (error) {
+            elements.connectionTestResult.textContent = 'Connection failed!';
+            elements.connectionTestResult.classList.add('error');
+        }
     });
 }
 
@@ -933,13 +1097,12 @@ function getFilteredHistory() {
 }
 
 // ============================================
-// Data Fetching & Updates
+// Data Fetching
 // ============================================
 async function fetchSensorData() {
     try {
         const data = await api.fetchSensorData();
         
-        // Update state
         state.currentData = {
             temperature: data.temperature,
             humidity: data.humidity,
@@ -950,34 +1113,25 @@ async function fetchSensorData() {
             lastUpdate: data.timestamp
         };
         
-        // Update UI
         updateTemperatureDisplay(data.temperature);
         updateHumidityDisplay(data.humidity);
-        updateTurningDisplay(data.eggTurning, data.turnsToday);
-        updateFanDisplay(data.fanOn, data.fanLastRan);
+        updateMotorDisplay(data.eggTurning, data.turnsToday);
+        updateFanDisplay(data.fanOn);
         
-        // Add log entry
         addLog(data);
-        
-        // Update logs display
         updateLogsDisplay();
-        
-        // Update charts
         updateChartData();
+        checkAlerts(data.temperature, data.humidity);
         
-        // Check for alerts
-        checkAlerts(data.temperature, data.humidity, data.eggTurning);
-        
-        // Update connection status
         state.isConnected = true;
-        elements.connectionStatus.classList.remove('disconnected');
-        elements.connectionStatus.querySelector('span:last-child').textContent = 'Connected to ESP32';
+        elements.statusDot.className = 'status-dot connected';
+        elements.connectionText.textContent = 'Connected';
         
     } catch (error) {
         console.error('Failed to fetch sensor data:', error);
         state.isConnected = false;
-        elements.connectionStatus.classList.add('disconnected');
-        elements.connectionStatus.querySelector('span:last-child').textContent = 'Disconnected';
+        elements.statusDot.className = 'status-dot disconnected';
+        elements.connectionText.textContent = 'Disconnected';
     }
 }
 
@@ -985,43 +1139,25 @@ async function fetchSensorData() {
 // Initialization
 // ============================================
 async function init() {
-    // Load data from localStorage
     loadFromLocalStorage();
-    
-    // Generate mock history if empty
     generateMockHistory();
     
-    // Initialize theme
     initTheme();
-    
-    // Initialize charts
-    initCharts();
-    
-    // Setup event listeners
+    setupNavigation();
     setupEventListeners();
-    
-    // Update schedule display
     updateScheduleDisplay();
     
-    // Initial data fetch
+    initCharts();
+    
     await fetchSensorData();
     
-    // Update countdown every second
     setInterval(updateCountdown, 1000);
-    
-    // Fetch sensor data every poll interval
     setInterval(fetchSensorData, CONFIG.POLL_INTERVAL);
-    
-    // Update logs display every 15 minutes
     setInterval(updateLogsDisplay, CONFIG.LOGS_UPDATE_INTERVAL);
-    
-    // Update charts every minute
-    setInterval(updateChartData, 60000);
 }
 
-// Make goToPage available globally for onclick handlers
+// Make functions globally available
 window.goToPage = goToPage;
-window.dismissAlert = dismissAlert;
 
 // Start the app
 document.addEventListener('DOMContentLoaded', init);

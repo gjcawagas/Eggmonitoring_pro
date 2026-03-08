@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-accent="amber">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,251 +9,504 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-egg"></i>
-                    <h1>EggWatch Pro</h1>
-                </div>
-                <div class="header-actions">
-                    <div class="connection-status" id="connectionStatus">
-                        <span class="status-dot"></span>
-                        <span>Connected to ESP32</span>
+    <!-- Top Navigation -->
+    <nav class="topnav">
+        <button class="btn-icon mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fas fa-bars"></i>
+        </button>
+        
+        <div class="topnav-brand">
+            <i class="fas fa-egg"></i>
+            <span class="brand-text">EggWatch <span class="accent">Pro</span></span>
+        </div>
+        
+        <div class="topnav-links">
+            <a href="#monitoring" class="nav-link active">
+                <i class="fas fa-heartbeat"></i> Monitor
+            </a>
+            <a href="#control" class="nav-link">
+                <i class="fas fa-sliders-h"></i> Control
+            </a>
+            <a href="#charts" class="nav-link">
+                <i class="fas fa-chart-line"></i> Charts
+            </a>
+            <a href="#logs" class="nav-link">
+                <i class="fas fa-list-alt"></i> Logs
+            </a>
+            <a href="#history" class="nav-link">
+                <i class="fas fa-history"></i> History
+            </a>
+            <a href="#settings" class="nav-link">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </div>
+        
+        <div class="topnav-actions">
+            <div class="connection-status">
+                <span class="status-dot connected" id="statusDot"></span>
+                <span id="connectionText">Connected</span>
+            </div>
+            <span class="last-updated-nav" id="lastUpdated">Last: --</span>
+            <button class="btn-icon" id="themeToggle" title="Toggle theme">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="alert-bell" id="alertBell">
+                <i class="fas fa-bell"></i>
+                <span class="alert-badge" id="alertBadge" style="display: none;">0</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Navigation -->
+    <div class="overlay" id="overlay"></div>
+    <div class="mobile-nav" id="mobileNav">
+        <a href="#monitoring" class="mobile-nav-link active">
+            <i class="fas fa-heartbeat"></i> Monitor
+        </a>
+        <a href="#control" class="mobile-nav-link">
+            <i class="fas fa-sliders-h"></i> Control
+        </a>
+        <a href="#charts" class="mobile-nav-link">
+            <i class="fas fa-chart-line"></i> Charts
+        </a>
+        <a href="#logs" class="mobile-nav-link">
+            <i class="fas fa-list-alt"></i> Logs
+        </a>
+        <a href="#history" class="mobile-nav-link">
+            <i class="fas fa-history"></i> History
+        </a>
+        <a href="#settings" class="mobile-nav-link">
+            <i class="fas fa-cog"></i> Settings
+        </a>
+    </div>
+
+    <!-- Alerts Panel -->
+    <div class="alerts-panel" id="alertsPanel">
+        <div class="alerts-panel-header">
+            <h3><i class="fas fa-bell"></i> Alerts</h3>
+            <button id="closeAlerts"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="alerts-list" id="alertsList">
+            <div class="no-alerts">No alerts</div>
+        </div>
+        <div class="alerts-panel-footer">
+            <button class="btn btn-secondary" style="width: 100%;" id="clearAlerts">
+                <i class="fas fa-trash"></i> Clear All
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Banner -->
+    <div class="alert-banner" id="alertBanner" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div class="alert-banner-inner" id="alertBannerText"></div>
+        <button class="alert-close" id="closeAlertBanner"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        
+        <!-- Monitoring Section -->
+        <section class="content-section" id="monitoring">
+            <div class="section-header">
+                <h2><i class="fas fa-heartbeat"></i> Real-Time Monitoring</h2>
+                <span class="badge badge-live"><i class="fas fa-circle"></i> LIVE</span>
+            </div>
+            
+            <div class="cards-grid monitoring-grid">
+                <!-- Temperature Card -->
+                <div class="card card-temperature" id="tempCard">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-thermometer-half"></i> Temperature</span>
+                        <span class="card-badge normal" id="tempBadge">Normal</span>
                     </div>
-                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-                        <i class="fas fa-moon"></i>
-                    </button>
+                    <div class="card-body">
+                        <span class="big-value normal" id="tempValue">--</span>
+                        <span class="big-unit">°C</span>
+                    </div>
+                    <div class="card-footer">
+                        <div class="range-bar">
+                            <div class="range-fill"></div>
+                            <div class="range-marker" id="tempMarker" style="left: 50%"></div>
+                        </div>
+                        <div class="range-labels">
+                            <span>35°C</span>
+                            <span>Safe: 37.5-38.5°C</span>
+                            <span>42°C</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Humidity Card -->
+                <div class="card card-humidity" id="humidityCard">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-tint"></i> Humidity</span>
+                        <span class="card-badge normal" id="humidityBadge">Normal</span>
+                    </div>
+                    <div class="card-body">
+                        <span class="big-value normal" id="humidityValue">--</span>
+                        <span class="big-unit">%</span>
+                    </div>
+                    <div class="card-footer">
+                        <div class="range-bar">
+                            <div class="range-fill"></div>
+                            <div class="range-marker" id="humidityMarker" style="left: 50%"></div>
+                        </div>
+                        <div class="range-labels">
+                            <span>30%</span>
+                            <span>Optimal: 50-60%</span>
+                            <span>80%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Motor Card -->
+                <div class="card" id="motorCard">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-sync-alt"></i> Egg Turning</span>
+                        <span class="card-badge" id="motorBadge">Idle</span>
+                    </div>
+                    <div class="motor-body">
+                        <div class="motor-icon" id="motorIcon">
+                            <i class="fas fa-circle-notch"></i>
+                        </div>
+                        <div>
+                            <div class="motor-state" id="motorState">Idle</div>
+                            <div class="motor-turns">
+                                <span class="turns-label">Turns Today</span>
+                                <span class="turns-value" id="turnsToday">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="next-turn-label">Next turn in</div>
+                    <div class="countdown" id="nextTurnCountdown">--:--:--</div>
+                </div>
+
+                <!-- Fan Card -->
+                <div class="card" id="fanCard">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-fan"></i> Fan Control</span>
+                    </div>
+                    <div class="fan-body">
+                        <div class="fan-icon" id="fanIcon">
+                            <i class="fas fa-fan"></i>
+                        </div>
+                        <div class="fan-info">
+                            <div class="fan-state" id="fanState">OFF</div>
+                            <div class="fan-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="fanToggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">Toggle Fan</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </header>
-
-        <!-- Alerts Section -->
-        <section class="alerts-section" id="alertsSection">
-            <!-- Alerts will be dynamically added here -->
         </section>
 
-        <!-- Main Dashboard -->
-        <main class="main-content">
-            <!-- Real-Time Monitoring Section -->
-            <section class="monitoring-section">
-                <h2><i class="fas fa-heartbeat"></i> Real-Time Monitoring</h2>
-                <div class="cards-grid">
-                    <!-- Temperature Card -->
-                    <div class="card temperature-card" id="temperatureCard">
-                        <div class="card-header">
-                            <i class="fas fa-thermometer-half"></i>
-                            <h3>Temperature</h3>
-                        </div>
-                        <div class="card-value">
-                            <span class="value" id="temperatureValue">--</span>
-                            <span class="unit">°C</span>
-                        </div>
-                        <div class="card-status" id="temperatureStatus">Normal</div>
-                        <div class="safe-range">Safe: 37.5 - 38.5°C</div>
+        <!-- Control Panel Section -->
+        <section class="content-section" id="control">
+            <div class="section-header">
+                <h2><i class="fas fa-sliders-h"></i> Egg Turning Control</h2>
+            </div>
+            
+            <div class="cards-grid control-grid">
+                <!-- Settings Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-cog"></i> Turn Settings</span>
                     </div>
-
-                    <!-- Humidity Card -->
-                    <div class="card humidity-card" id="humidityCard">
-                        <div class="card-header">
-                            <i class="fas fa-tint"></i>
-                            <h3>Humidity</h3>
-                        </div>
-                        <div class="card-value">
-                            <span class="value" id="humidityValue">--</span>
-                            <span class="unit">%</span>
-                        </div>
-                        <div class="card-status" id="humidityStatus">Normal</div>
-                        <div class="safe-range">Optimal: 50 - 60%</div>
-                    </div>
-
-                    <!-- Egg Turning Status Card -->
-                    <div class="card turning-card" id="turningCard">
-                        <div class="card-header">
-                            <i class="fas fa-sync-alt"></i>
-                            <h3>Egg Turning</h3>
-                        </div>
-                        <div class="card-value">
-                            <span class="status-indicator" id="turningStatus">
-                                <i class="fas fa-circle-notch spinning"></i>
-                                <span>Running</span>
-                            </span>
-                        </div>
-                        <div class="card-sub">
-                            <span>Turns Today: <strong id="turnsToday">0</strong></span>
-                        </div>
-                        <div class="countdown">
-                            <span>Next turn in: </span>
-                            <strong id="nextTurnCountdown">--:--</strong>
-                        </div>
-                    </div>
-
-                    <!-- Fan Control Card -->
-                    <div class="card fan-card" id="fanCard">
-                        <div class="card-header">
-                            <i class="fas fa-fan"></i>
-                            <h3>Fan Control</h3>
-                        </div>
-                        <div class="card-value">
-                            <button class="toggle-btn" id="fanToggle">
-                                <span class="toggle-status" id="fanStatus">OFF</span>
-                                <span class="toggle-slider"></span>
-                            </button>
-                        </div>
-                        <div class="card-sub">
-                            <span>Last ran: <strong id="fanLastRan">--</strong></span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Egg Turning Control Panel -->
-            <section class="control-panel-section">
-                <h2><i class="fas fa-sliders-h"></i> Egg Turning Control Panel</h2>
-                <div class="control-panel-card card">
                     <div class="control-form">
                         <div class="form-group">
-                            <label for="turnsPerDay">Turns Per Day</label>
+                            <label>Turns Per Day</label>
                             <input type="number" id="turnsPerDay" min="1" max="24" value="6">
                         </div>
                         <div class="form-group">
-                            <label for="turnInterval">Interval Between Turns (hours)</label>
+                            <label>Interval (hours)</label>
                             <input type="number" id="turnInterval" min="1" max="12" value="4">
                         </div>
                         <button class="btn btn-primary" id="saveSettings">
-                            <i class="fas fa-save"></i> Save & Apply
+                            <i class="fas fa-save"></i> Save Settings
                         </button>
                     </div>
-                    <div class="schedule-display">
-                        <h4>Automatic Schedule</h4>
+                    <div class="schedule-preview">
+                        <div class="schedule-title">Automatic Schedule</div>
                         <div class="schedule-times" id="scheduleTimes">
                             <!-- Schedule times will be generated here -->
                         </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Charts Section -->
-            <section class="charts-section">
+                <!-- Manual Control Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-hand-pointer"></i> Manual Control</span>
+                    </div>
+                    <div class="manual-controls">
+                        <button class="btn btn-warning" id="triggerTurn">
+                            <i class="fas fa-sync-alt"></i> Trigger Turn Now
+                        </button>
+                        <div class="manual-status" id="manualStatus"></div>
+                    </div>
+                    <div class="stats-list">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Turns Today</span>
+                            <span class="stat-value" id="totalTurns">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Last Turn</span>
+                            <span class="stat-value" id="lastTurnTime">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Next Scheduled</span>
+                            <span class="stat-value" id="nextScheduled">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="content-section" id="charts">
+            <div class="section-header">
                 <h2><i class="fas fa-chart-line"></i> Charts & Visualization</h2>
-                <div class="charts-grid">
-                    <div class="chart-card card">
-                        <h3>Temperature Over Time</h3>
-                        <div class="chart-container">
-                            <canvas id="temperatureChart"></canvas>
-                        </div>
+                <div class="section-header-actions">
+                    <select class="select-input" id="chartTimeRange">
+                        <option value="6">Last 6 Hours</option>
+                        <option value="12">Last 12 Hours</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="48">Last 48 Hours</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="cards-grid">
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-thermometer-half"></i> Temperature Over Time</span>
                     </div>
-                    <div class="chart-card card">
-                        <h3>Humidity Over Time</h3>
-                        <div class="chart-container">
-                            <canvas id="humidityChart"></canvas>
-                        </div>
+                    <div class="chart-container">
+                        <canvas id="temperatureChart"></canvas>
                     </div>
                 </div>
-            </section>
+                
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-tint"></i> Humidity Over Time</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="humidityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-            <!-- Data Logs Section -->
-            <section class="logs-section">
+        <!-- Logs Section -->
+        <section class="content-section" id="logs">
+            <div class="section-header">
                 <h2><i class="fas fa-list-alt"></i> Recent Logs</h2>
-                <div class="logs-card card">
-                    <div class="logs-header">
-                        <span>Latest 20 readings (Auto-update every 15 min)</span>
-                        <span class="last-update" id="logsLastUpdate">Last update: --</span>
-                    </div>
-                    <div class="logs-table-container">
-                        <table class="logs-table">
-                            <thead>
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Temperature</th>
-                                    <th>Humidity</th>
-                                    <th>Egg Turn</th>
-                                </tr>
-                            </thead>
-                            <tbody id="logsTableBody">
-                                <!-- Logs will be dynamically added here -->
-                            </tbody>
-                        </table>
+                <span class="badge badge-info">Auto-update 15 min</span>
+            </div>
+            
+            <div class="card">
+                <div class="logs-toolbar">
+                    <span class="logs-count" id="logsCount">Latest 20 readings</span>
+                    <div class="logs-actions">
+                        <button class="btn btn-secondary btn-sm" id="refreshLogs">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
                     </div>
                 </div>
-            </section>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Temperature</th>
+                                <th>Humidity</th>
+                                <th>Egg Turned</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <!-- Logs will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
 
-            <!-- Full History Section -->
-            <section class="history-section">
-                <h2>
-                    <i class="fas fa-history"></i> Full History
-                    <button class="btn btn-secondary btn-sm" id="toggleHistory">
-                        <i class="fas fa-chevron-down"></i> Expand
-                    </button>
-                </h2>
-                <div class="history-card card hidden" id="historyCard">
-                    <div class="history-filters">
-                        <div class="filter-group">
-                            <label for="searchDate">Search by Date</label>
-                            <input type="date" id="searchDate">
-                        </div>
-                        <div class="filter-group">
-                            <label for="filterTempMin">Min Temp (°C)</label>
+        <!-- History Section -->
+        <section class="content-section" id="history">
+            <div class="section-header">
+                <h2><i class="fas fa-history"></i> Full History</h2>
+            </div>
+            
+            <div class="card filter-card">
+                <div class="filter-grid">
+                    <div class="form-group">
+                        <label>Search by Date</label>
+                        <input type="date" id="searchDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature Range</label>
+                        <div class="range-inputs">
                             <input type="number" id="filterTempMin" placeholder="Min" step="0.1">
-                        </div>
-                        <div class="filter-group">
-                            <label for="filterTempMax">Max Temp (°C)</label>
+                            <span>to</span>
                             <input type="number" id="filterTempMax" placeholder="Max" step="0.1">
                         </div>
-                        <div class="filter-group">
-                            <label for="filterHumidityMin">Min Humidity (%)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Humidity Range</label>
+                        <div class="range-inputs">
                             <input type="number" id="filterHumidityMin" placeholder="Min">
-                        </div>
-                        <div class="filter-group">
-                            <label for="filterHumidityMax">Max Humidity (%)</label>
+                            <span>to</span>
                             <input type="number" id="filterHumidityMax" placeholder="Max">
                         </div>
-                        <div class="filter-actions">
-                            <button class="btn btn-primary" id="applyFilters">
-                                <i class="fas fa-filter"></i> Apply Filters
-                            </button>
-                            <button class="btn btn-secondary" id="clearFilters">
-                                <i class="fas fa-times"></i> Clear
-                            </button>
-                            <button class="btn btn-success" id="exportCSV">
-                                <i class="fas fa-file-export"></i> Export CSV
-                            </button>
-                        </div>
                     </div>
-                    <div class="history-stats" id="historyStats">
-                        <span>Total Records: <strong id="totalRecords">0</strong></span>
-                        <span>Filtered: <strong id="filteredRecords">0</strong></span>
-                    </div>
-                    <div class="history-table-container">
-                        <table class="history-table">
-                            <thead>
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Temperature (°C)</th>
-                                    <th>Humidity (%)</th>
-                                    <th>Egg Turned</th>
-                                    <th>Fan Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody">
-                                <!-- History will be dynamically added here -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="pagination" id="historyPagination">
-                        <!-- Pagination will be added here -->
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" id="applyFilters">
+                            <i class="fas fa-filter"></i> Apply
+                        </button>
+                        <button class="btn btn-secondary" id="clearFilters">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                        <button class="btn btn-success" id="exportCSV">
+                            <i class="fas fa-file-export"></i> Export
+                        </button>
                     </div>
                 </div>
-            </section>
-        </main>
+            </div>
+            
+            <div class="card">
+                <div class="logs-toolbar">
+                    <span class="logs-count" id="historyStats">
+                        Total: <strong id="totalRecords">0</strong> | Filtered: <strong id="filteredRecords">0</strong>
+                    </span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Temperature (°C)</th>
+                                <th>Humidity (%)</th>
+                                <th>Egg Turned</th>
+                                <th>Fan Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- History will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="historyPagination">
+                    <!-- Pagination will be added here -->
+                </div>
+            </div>
+        </section>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <p>EggWatch Pro - Smart Egg Incubator Monitoring System</p>
-            <p>Designed for ESP32-based incubators</p>
-        </footer>
-    </div>
+        <!-- Settings Section -->
+        <section class="content-section" id="settings">
+            <div class="section-header">
+                <h2><i class="fas fa-cog"></i> Settings</h2>
+            </div>
+            
+            <div class="cards-grid settings-grid">
+                <!-- Display Settings -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-palette"></i> Display</span>
+                    </div>
+                    <div class="settings-form">
+                        <div class="toggle-row">
+                            <label>Dark Mode</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="darkModeToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <label>Show Range Bars</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="showRangeBars" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="color-swatches">
+                            <div class="swatch active" data-accent="amber" style="background: #f59e0b;"></div>
+                            <div class="swatch" data-accent="green" style="background: #22c55e;"></div>
+                            <div class="swatch" data-accent="blue" style="background: #3b82f6;"></div>
+                            <div class="swatch" data-accent="purple" style="background: #a855f7;"></div>
+                            <div class="swatch" data-accent="red" style="background: #ef4444;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Threshold Settings -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-sliders-h"></i> Alert Thresholds</span>
+                    </div>
+                    <div class="threshold-settings">
+                        <div class="threshold-title">Temperature (°C)</div>
+                        <div class="threshold-row">
+                            <label>Min Safe</label>
+                            <input type="number" id="tempMinThreshold" value="37.5" step="0.1">
+                        </div>
+                        <div class="threshold-row">
+                            <label>Max Safe</label>
+                            <input type="number" id="tempMaxThreshold" value="38.5" step="0.1">
+                        </div>
+                        <div class="threshold-title">Humidity (%)</div>
+                        <div class="threshold-row">
+                            <label>Min Optimal</label>
+                            <input type="number" id="humidityMinThreshold" value="50">
+                        </div>
+                        <div class="threshold-row">
+                            <label>Max Optimal</label>
+                            <input type="number" id="humidityMaxThreshold" value="60">
+                        </div>
+                        <button class="btn btn-primary btn-sm" id="saveThresholds" style="margin-top: 12px;">
+                            <i class="fas fa-save"></i> Save Thresholds
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-label"><i class="fas fa-wifi"></i> Connection</span>
+                    </div>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span>ESP32 Address</span>
+                            <span id="esp32Address">192.168.1.100</span>
+                        </div>
+                        <div class="info-item">
+                            <span>API Endpoint</span>
+                            <span>/api</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Poll Interval</span>
+                            <span>3 seconds</span>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label>Test Connection</label>
+                        <button class="btn btn-secondary btn-sm" id="testConnection" style="width: 100%;">
+                            <i class="fas fa-plug"></i> Test Connection
+                        </button>
+                        <div class="connection-test" id="connectionTestResult"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <script src="app.js"></script>
 </body>
