@@ -53,7 +53,7 @@ const state = {
     },
     alerts: [],
     isDarkMode: localStorage.getItem('darkMode') !== 'false',
-    accentColor: localStorage.getItem('accentColor') || 'amber',
+    accentColor: localStorage.getItem('accentColor') || 'pink',
     isConnected: true,
     chartData: {
         temperature: [],
