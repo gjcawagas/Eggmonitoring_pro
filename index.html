@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EggWatch Pro - Smart Incubator Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-egg"></i>
+                    <h1>EggWatch Pro</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="connection-status" id="connectionStatus">
+                        <span class="status-dot"></span>
+                        <span>Connected to ESP32</span>
+                    </div>
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Alerts Section -->
+        <section class="alerts-section" id="alertsSection">
+            <!-- Alerts will be dynamically added here -->
+        </section>
+
+        <!-- Main Dashboard -->
+        <main class="main-content">
+            <!-- Real-Time Monitoring Section -->
+            <section class="monitoring-section">
+                <h2><i class="fas fa-heartbeat"></i> Real-Time Monitoring</h2>
+                <div class="cards-grid">
+                    <!-- Temperature Card -->
+                    <div class="card temperature-card" id="temperatureCard">
+                        <div class="card-header">
+                            <i class="fas fa-thermometer-half"></i>
+                            <h3>Temperature</h3>
+                        </div>
+                        <div class="card-value">
+                            <span class="value" id="temperatureValue">--</span>
+                            <span class="unit">°C</span>
+                        </div>
+                        <div class="card-status" id="temperatureStatus">Normal</div>
+                        <div class="safe-range">Safe: 37.5 - 38.5°C</div>
+                    </div>
+
+                    <!-- Humidity Card -->
+                    <div class="card humidity-card" id="humidityCard">
+                        <div class="card-header">
+                            <i class="fas fa-tint"></i>
+                            <h3>Humidity</h3>
+                        </div>
+                        <div class="card-value">
+                            <span class="value" id="humidityValue">--</span>
+                            <span class="unit">%</span>
+                        </div>
+                        <div class="card-status" id="humidityStatus">Normal</div>
+                        <div class="safe-range">Optimal: 50 - 60%</div>
+                    </div>
+
+                    <!-- Egg Turning Status Card -->
+                    <div class="card turning-card" id="turningCard">
+                        <div class="card-header">
+                            <i class="fas fa-sync-alt"></i>
+                            <h3>Egg Turning</h3>
+                        </div>
+                        <div class="card-value">
+                            <span class="status-indicator" id="turningStatus">
+                                <i class="fas fa-circle-notch spinning"></i>
+                                <span>Running</span>
+                            </span>
+                        </div>
+                        <div class="card-sub">
+                            <span>Turns Today: <strong id="turnsToday">0</strong></span>
+                        </div>
+                        <div class="countdown">
+                            <span>Next turn in: </span>
+                            <strong id="nextTurnCountdown">--:--</strong>
+                        </div>
+                    </div>
+
+                    <!-- Fan Control Card -->
+                    <div class="card fan-card" id="fanCard">
+                        <div class="card-header">
+                            <i class="fas fa-fan"></i>
+                            <h3>Fan Control</h3>
+                        </div>
+                        <div class="card-value">
+                            <button class="toggle-btn" id="fanToggle">
+                                <span class="toggle-status" id="fanStatus">OFF</span>
+                                <span class="toggle-slider"></span>
+                            </button>
+                        </div>
+                        <div class="card-sub">
+                            <span>Last ran: <strong id="fanLastRan">--</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Egg Turning Control Panel -->
+            <section class="control-panel-section">
+                <h2><i class="fas fa-sliders-h"></i> Egg Turning Control Panel</h2>
+                <div class="control-panel-card card">
+                    <div class="control-form">
+                        <div class="form-group">
+                            <label for="turnsPerDay">Turns Per Day</label>
+                            <input type="number" id="turnsPerDay" min="1" max="24" value="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="turnInterval">Interval Between Turns (hours)</label>
+                            <input type="number" id="turnInterval" min="1" max="12" value="4">
+                        </div>
+                        <button class="btn btn-primary" id="saveSettings">
+                            <i class="fas fa-save"></i> Save & Apply
+                        </button>
+                    </div>
+                    <div class="schedule-display">
+                        <h4>Automatic Schedule</h4>
+                        <div class="schedule-times" id="scheduleTimes">
+                            <!-- Schedule times will be generated here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <h2><i class="fas fa-chart-line"></i> Charts & Visualization</h2>
+                <div class="charts-grid">
+                    <div class="chart-card card">
+                        <h3>Temperature Over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="temperatureChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card card">
+                        <h3>Humidity Over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="humidityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Logs Section -->
+            <section class="logs-section">
+                <h2><i class="fas fa-list-alt"></i> Recent Logs</h2>
+                <div class="logs-card card">
+                    <div class="logs-header">
+                        <span>Latest 20 readings (Auto-update every 15 min)</span>
+                        <span class="last-update" id="logsLastUpdate">Last update: --</span>
+                    </div>
+                    <div class="logs-table-container">
+                        <table class="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Temperature</th>
+                                    <th>Humidity</th>
+                                    <th>Egg Turn</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody">
+                                <!-- Logs will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Full History Section -->
+            <section class="history-section">
+                <h2>
+                    <i class="fas fa-history"></i> Full History
+                    <button class="btn btn-secondary btn-sm" id="toggleHistory">
+                        <i class="fas fa-chevron-down"></i> Expand
+                    </button>
+                </h2>
+                <div class="history-card card hidden" id="historyCard">
+                    <div class="history-filters">
+                        <div class="filter-group">
+                            <label for="searchDate">Search by Date</label>
+                            <input type="date" id="searchDate">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterTempMin">Min Temp (°C)</label>
+                            <input type="number" id="filterTempMin" placeholder="Min" step="0.1">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterTempMax">Max Temp (°C)</label>
+                            <input type="number" id="filterTempMax" placeholder="Max" step="0.1">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterHumidityMin">Min Humidity (%)</label>
+                            <input type="number" id="filterHumidityMin" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterHumidityMax">Max Humidity (%)</label>
+                            <input type="number" id="filterHumidityMax" placeholder="Max">
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn btn-primary" id="applyFilters">
+                                <i class="fas fa-filter"></i> Apply Filters
+                            </button>
+                            <button class="btn btn-secondary" id="clearFilters">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                            <button class="btn btn-success" id="exportCSV">
+                                <i class="fas fa-file-export"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="history-stats" id="historyStats">
+                        <span>Total Records: <strong id="totalRecords">0</strong></span>
+                        <span>Filtered: <strong id="filteredRecords">0</strong></span>
+                    </div>
+                    <div class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Temperature (°C)</th>
+                                    <th>Humidity (%)</th>
+                                    <th>Egg Turned</th>
+                                    <th>Fan Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- History will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="historyPagination">
+                        <!-- Pagination will be added here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>EggWatch Pro - Smart Egg Incubator Monitoring System</p>
+            <p>Designed for ESP32-based incubators</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
